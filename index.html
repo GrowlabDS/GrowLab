@@ -337,6 +337,32 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .email-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+        
+        .response-display {
+            background: rgba(0,0,0,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .response-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -349,6 +375,7 @@
             <div class="theme-toggle" onclick="toggleTheme()">
                 <i class="fas fa-moon"></i>
             </div>
+        
         </header>
 
         <button class="admin-btn" onclick="location.href='admin-login.html'">
@@ -362,7 +389,7 @@
                 <p>Relate problemas, acompanhe o status e dê seu feedback sobre as soluções implementadas.</p>
             </div>
             <div class="hero-image">
-                <img src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80" alt="Laboratório">
+                <img src="imagem.avif" alt="Laboratório">
             </div>
         </section>
 
@@ -395,7 +422,8 @@
             <p>Antes deste sistema, os problemas eram reportados informalmente, o que muitas vezes resultava em demora na resolução e falta de acompanhamento.</p>
         </section>
 
-        <section class="complaint-form" id="complaintForm">
+        <section class="complaint-form">
+<form id="complaintForm">
             <h2><i class="fas fa-plus-circle"></i> Reportar Novo Problema</h2>
             <div class="form-group">
                 <label for="title">Título do Problema</label>
@@ -430,11 +458,17 @@
                 </select>
             </div>
             <div class="form-group">
+                <label for="email">Seu E-mail (opcional)</label>
+                <input type="email" id="email" class="email-input" placeholder="exemplo@etec.com">
+            </div>
+
+            <div class="form-group">
                 <label for="description">Descrição Detalhada</label>
                 <textarea id="description" rows="5" placeholder="Descreva o problema com o máximo de detalhes possível..." required></textarea>
             </div>
             <button type="submit"><i class="fas fa-paper-plane"></i> Enviar Relatório</button>
-        </section>
+</form>
+</section>
 
         <section>
             <h2><i class="fas fa-list"></i> Últimos Problemas Reportados</h2>
@@ -448,541 +482,153 @@
     </div>
 
     <script>
-        // Configuração do Banco de Dados
-const DB_CONFIG = {
-    name: "GrowLabDB",
-    version: 2,
-    stores: {
-        complaints: {
-            keyPath: "id",
-            autoIncrement: true,
-            indexes: [
-                { name: "status", keyPath: "status", unique: false },
-                { name: "lab", keyPath: "lab", unique: false },
-                { name: "category", keyPath: "category", unique: false },
-                { name: "date", keyPath: "date", unique: false }
-            ]
-        },
-        users: {
-            keyPath: "username",
-            indexes: [
-                { name: "role", keyPath: "role", unique: false }
-            ]
-        }
-    }
-};
-
-// Classe DatabaseService
-class DatabaseService {
-    constructor() {
-        this.db = null;
-        this.initializeDB();
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const icon = document.querySelector('.theme-toggle i');
+        icon.classList.toggle('fa-moon');
+        icon.classList.toggle('fa-sun');
     }
 
-    initializeDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_CONFIG.name, DB_CONFIG.version);
+    const DataService = {
+        async addComplaint(complaint) {
+            const complaints = JSON.parse(localStorage.getItem('complaints')) || [];
+            const newId = complaints.length > 0 ? Math.max(...complaints.map(c => c.id)) + 1 : 1;
 
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                
-                // Cria object stores e índices
-                for (const [storeName, config] of Object.entries(DB_CONFIG.stores)) {
-                    if (!db.objectStoreNames.contains(storeName)) {
-                        const store = db.createObjectStore(storeName, {
-                            keyPath: config.keyPath,
-                            autoIncrement: config.autoIncrement
-                        });
-
-                        // Cria índices
-                        config.indexes.forEach(index => {
-                            store.createIndex(index.name, index.keyPath, { unique: index.unique });
-                        });
-                    }
-                }
-
-                // Dados iniciais (opcional)
-                if (event.oldVersion === 0) {
-                    this.insertInitialData(db);
-                }
-            };
-
-            request.onsuccess = (event) => {
-                this.db = event.target.result;
-                resolve(this.db);
-            };
-
-            request.onerror = (event) => {
-                reject(`Erro ao abrir o banco de dados: ${event.target.error}`);
-            };
-        });
-    }
-
-    insertInitialData(db) {
-        const complaints = [
-            {
-                title: "Problema com o projetor",
-                category: "Hardware",
-                lab: "Laboratório 1",
-                description: "O projetor não está exibindo imagem corretamente",
-                date: new Date().toISOString(),
-                status: "pending",
-                response: ""
-            },
-            {
-                title: "Computador não liga",
-                category: "Hardware",
-                lab: "Laboratório 3",
-                description: "O computador da estação 5 não está ligando",
-                date: new Date().toISOString(),
-                status: "analysis",
-                response: "Em verificação técnica"
-            }
-        ];
-
-        const tx = db.transaction("complaints", "readwrite");
-        const store = tx.objectStore("complaints");
-        
-        complaints.forEach(complaint => {
-            store.add(complaint);
-        });
-    }
-
-    // Operações CRUD para reclamações
-    async addComplaint(complaint) {
-        const tx = this.db.transaction("complaints", "readwrite");
-        const store = tx.objectStore("complaints");
-        
-        return new Promise((resolve, reject) => {
-            const request = store.add({
+            const newComplaint = {
+                id: newId,
                 ...complaint,
-                date: new Date().toISOString(),
-                status: "pending",
-                response: ""
-            });
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    async getAllComplaints() {
-        const tx = this.db.transaction("complaints", "readonly");
-        const store = tx.objectStore("complaints");
-        
-        return new Promise((resolve, reject) => {
-            const request = store.getAll();
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    async getComplaintsByStatus(status) {
-        const tx = this.db.transaction("complaints", "readonly");
-        const store = tx.objectStore("complaints");
-        const index = store.index("status");
-        
-        return new Promise((resolve, reject) => {
-            const request = index.getAll(status);
-
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    async updateComplaint(id, updates) {
-        const tx = this.db.transaction("complaints", "readwrite");
-        const store = tx.objectStore("complaints");
-        
-        return new Promise(async (resolve, reject) => {
-            try {
-                const complaint = await new Promise((res, rej) => {
-                    const request = store.get(id);
-                    request.onsuccess = () => res(request.result);
-                    request.onerror = () => rej(request.error);
-                });
-
-                if (!complaint) {
-                    reject("Reclamação não encontrada");
-                    return;
-                }
-
-                const updatedComplaint = { ...complaint, ...updates };
-                const updateRequest = store.put(updatedComplaint);
-
-                updateRequest.onsuccess = () => resolve();
-                updateRequest.onerror = () => reject(updateRequest.error);
-            } catch (error) {
-                reject(error);
-            }
-        });
-    }
-
-    async deleteComplaint(id) {
-        const tx = this.db.transaction("complaints", "readwrite");
-        const store = tx.objectStore("complaints");
-        
-        return new Promise((resolve, reject) => {
-            const request = store.delete(id);
-
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    }
-}
-
-// Inicialização e uso do banco de dados
-const dbService = new DatabaseService();
-
-// Exemplo de uso:
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        await dbService.initializeDB();
-        
-        // Carrega reclamações ao iniciar
-        const complaints = await dbService.getAllComplaints();
-        console.log("Reclamações carregadas:", complaints);
-        
-        // Configura o formulário de reclamações
-        document.getElementById('complaintForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const complaint = {
-                title: document.getElementById('title').value,
-                category: document.getElementById('category').value,
-                lab: document.getElementById('lab').value,
-                description: document.getElementById('description').value
+                date: new Date().toLocaleString('pt-BR'),
+                status: 'pending',
+                response: ''
             };
 
-            try {
-                await dbService.addComplaint(complaint);
-                alert("Reclamação registrada com sucesso!");
-                e.target.reset();
-                
-                // Atualiza a lista de reclamações
-                const updatedComplaints = await dbService.getAllComplaints();
-                renderComplaints(updatedComplaints);
-            } catch (error) {
-                console.error("Erro ao adicionar reclamação:", error);
-                alert("Erro ao registrar reclamação. Tente novamente.");
-            }
-        });
-        
-    } catch (error) {
-        console.error("Erro ao inicializar o banco de dados:", error);
-        alert("Erro ao carregar o sistema. Recarregue a página.");
+            complaints.push(newComplaint);
+            localStorage.setItem('complaints', JSON.stringify(complaints));
+            return newComplaint;
+        },
+
+        async getAllComplaints() {
+            return JSON.parse(localStorage.getItem('complaints')) || [];
+        },
+
+        async updateComplaint(updatedComplaint) {
+            let complaints = JSON.parse(localStorage.getItem('complaints')) || [];
+            complaints = complaints.map(c => c.id === updatedComplaint.id ? updatedComplaint : c);
+            localStorage.setItem('complaints', JSON.stringify(complaints));
+        },
+
+        async getComplaintsByStatus(status) {
+            const complaints = await this.getAllComplaints();
+            return complaints.filter(c => c.status === status);
+        }
+    };
+
+    async function updateStats() {
+        try {
+            const complaints = await DataService.getAllComplaints();
+            const total = complaints.length;
+            const resolved = complaints.filter(c => c.status === 'resolved').length;
+            const pending = complaints.filter(c => c.status === 'pending' || c.status === 'analysis').length;
+
+            document.getElementById('total-complaints').textContent = total;
+            document.getElementById('resolved-complaints').textContent = resolved;
+            document.getElementById('pending-complaints').textContent = pending;
+        } catch (error) {
+            console.error('Erro ao atualizar estatísticas:', error);
+        }
     }
-});
 
-// Função para renderizar reclamações na tela
- function renderComplaints(complaints) {
-    const container = document.getElementById('complaintsGrid');
-    container.innerHTML = complaints.map(complaint => `
-        <div class="complaint-card">
-            <h3>${complaint.title}</h3>
-            <p><strong>Laboratório:</strong> ${complaint.lab}</p>
-            <p><strong>Categoria:</strong> ${complaint.category}</p>
-            <p>${complaint.description}</p>
-            <p><small>Status: ${complaint.status}</small></p>
-            ${complaint.response ? `<p><em>Resposta: ${complaint.response}</em></p>` : ''}
-        </div>
-    `).join('');
-}
-// Adicionar reclamação
-await dbService.addComplaint({
-    title: "Problema no computador",
-    category: "Hardware",
-    lab: "Laboratório 2",
-    description: "Tela azul ao ligar"
-});
+    async function displayComplaints() {
+        try {
+            const complaints = await DataService.getAllComplaints();
+            const grid = document.getElementById('complaintsGrid');
+            const sortedComplaints = complaints.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-// Buscar todas reclamações
-const allComplaints = await dbService.getAllComplaints();
-
-// Buscar por status
-const pendingComplaints = await dbService.getComplaintsByStatus("pending");
-
-// Atualizar reclamação
-await dbService.updateComplaint(1, {
-    status: "resolved",
-    response: "Problema resolvido - HD substituído"
-});
-
-// Excluir reclamação
-await dbService.deleteComplaint(1);
-
-        // =============================================
-        // Lógica da Aplicação
-        // =============================================
-        
-        // Tema
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            const icon = document.querySelector('.theme-toggle i');
-            icon.classList.toggle('fa-moon');
-            icon.classList.toggle('fa-sun');
-        }
-
-        // Atualiza as estatísticas
-        async function updateStats() {
-            try {
-                const complaints = await DataService.getAllComplaints();
-                const total = complaints.length;
-                const resolved = complaints.filter(c => c.status === 'resolved').length;
-                const pending = complaints.filter(c => c.status === 'pending' || c.status === 'analysis').length;
-                
-                document.getElementById('total-complaints').textContent = total;
-                document.getElementById('resolved-complaints').textContent = resolved;
-                document.getElementById('pending-complaints').textContent = pending;
-            } catch (error) {
-                console.error('Erro ao atualizar estatísticas:', error);
-            }
-        }
-
-        // Exibe as reclamações
-        async function displayComplaints() {
-            try {
-                const complaints = await DataService.getAllComplaints();
-                const grid = document.getElementById('complaintsGrid');
-                
-                grid.innerHTML = complaints.map(complaint => `
-                    <div class="complaint-card">
-                        <div class="complaint-header">
-                            <h3>${complaint.title}</h3>
-                            <span class="status ${complaint.status}">${getStatusText(complaint.status)}</span>
-                        </div>
-                        <div class="complaint-meta">
-                            <span><i class="fas fa-tag"></i> ${complaint.category}</span>
-                            <span><i class="fas fa-calendar-alt"></i> ${complaint.date}</span>
-                            <span><i class="fas fa-flask"></i> ${complaint.lab}</span>
-                        </div>
-                        <p>${complaint.description}</p>
-                        
-                        ${complaint.response ? `
-                            <div class="response">
-                                <h4><i class="fas fa-reply"></i> Resposta do Suporte:</h4>
-                                <p>${complaint.response}</p>
-                            </div>
-                        ` : ''}
-                        
-                        ${complaint.feedback ? `
-                            <div class="feedback-section">
-                                <h4><i class="fas fa-comment-dots"></i> Seu Feedback:</h4>
-                                <div class="feedback-item">
-                                    <div class="feedback-meta">
-                                        Avaliação: ${renderStars(complaint.feedback.rating)} | ${complaint.feedback.date}
-                                    </div>
-                                    <p>${complaint.feedback.comment}</p>
-                                </div>
-                            </div>
-                        ` : `
-                            ${complaint.status === 'resolved' ? `
-                                <div class="feedback-section">
-                                    <button class="btn-success" onclick="showFeedbackForm(${complaint.id})">
-                                        <i class="fas fa-comment-medical"></i> Deixar Feedback
-                                    </button>
-                                    <div class="feedback-form" id="feedbackForm-${complaint.id}">
-                                        <h4>Avalie a solução do problema</h4>
-                                        <div class="form-group">
-                                            <label>Avaliação (1-5 estrelas)</label>
-                                            <div class="rating" id="rating-${complaint.id}">
-                                                <i class="far fa-star" onclick="setRating(${complaint.id}, 1)"></i>
-                                                <i class="far fa-star" onclick="setRating(${complaint.id}, 2)"></i>
-                                                <i class="far fa-star" onclick="setRating(${complaint.id}, 3)"></i>
-                                                <i class="far fa-star" onclick="setRating(${complaint.id}, 4)"></i>
-                                                <i class="far fa-star" onclick="setRating(${complaint.id}, 5)"></i>
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Comentário (opcional)</label>
-                                            <textarea id="feedbackComment-${complaint.id}" rows="3" placeholder="Como foi sua experiência com a solução deste problema?"></textarea>
-                                        </div>
-                                        <button onclick="submitFeedback(${complaint.id})"><i class="fas fa-check"></i> Enviar Feedback</button>
-                                    </div>
-                                </div>
-                            ` : ''}
-                        `}
+            grid.innerHTML = sortedComplaints.slice(0, 6).map(complaint => `
+                <div class="complaint-card">
+                    <div class="complaint-header">
+                        <h3>${complaint.title}</h3>
+                        <span class="status ${complaint.status}">${getStatusText(complaint.status)}</span>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Erro ao exibir reclamações:', error);
-            }
+                    <div class="complaint-meta">
+                        <span><i class="fas fa-tag"></i> ${complaint.category}</span>
+                        <span><i class="fas fa-calendar-alt"></i> ${complaint.date}</span>
+                        <span><i class="fas fa-flask"></i> ${complaint.lab}</span>
+                    </div>
+                    <p>${complaint.description}</p>
+
+                    ${complaint.response ? `
+                        <div class="response-display">
+                            <div class="response-title">
+                                <i class="fas fa-user-shield"></i> Resposta do Suporte:
+                            </div>
+                            <p>${complaint.response}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Erro ao exibir reclamações:', error);
         }
-
-        // Funções auxiliares
-        function getStatusText(status) {
-            const statusMap = {
-                'pending': 'PENDENTE',
-                'analysis': 'EM ANÁLISE',
-                'resolved': 'RESOLVIDO',
-                'rejected': 'REJEITADO'
-            };
-            return statusMap[status] || status;
-        }
-
-        function renderStars(rating) {
-            let stars = '';
-            for (let i = 1; i <= 5; i++) {
-                stars += i <= rating ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
-            }
-            return stars;
-        }
-
-        function showFeedbackForm(complaintId) {
-            document.getElementById(`feedbackForm-${complaintId}`).classList.add('active');
-        }
-
-        function setRating(complaintId, rating) {
-            const stars = document.querySelectorAll(`#rating-${complaintId} i`);
-            stars.forEach((star, index) => {
-                if (index < rating) {
-                    star.classList.add('fas');
-                    star.classList.remove('far');
-                } else {
-                    star.classList.add('far');
-                    star.classList.remove('fas');
-                }
-            });
-        }
-
-        async function submitFeedback(complaintId) {
-            try {
-                const stars = document.querySelectorAll(`#rating-${complaintId} .fas`).length;
-                const comment = document.getElementById(`feedbackComment-${complaintId}`).value;
-                
-                if (stars === 0) {
-                    alert('Por favor, dê uma avaliação de pelo menos 1 estrela.');
-                    return;
-                }
-                
-                const complaints = await DataService.getAllComplaints();
-                const complaint = complaints.find(c => c.id === complaintId);
-                
-                if (complaint) {
-                    complaint.feedback = {
-                        rating: stars,
-                        comment: comment || 'Sem comentário',
-                        date: new Date().toLocaleString('pt-BR')
-                    };
-                    
-                    await DataService.updateComplaint(complaint);
-                    await displayComplaints();
-                    alert('Obrigado pelo seu feedback! Sua avaliação nos ajuda a melhorar o serviço.');
-                }
-            } catch (error) {
-                console.error('Erro ao enviar feedback:', error);
-                alert('Erro ao enviar feedback. Por favor, tente novamente.');
-            }
-        }
-
-        // =============================================
-        // Event Listeners
-        // =============================================
-        
-         
-        document.getElementById('complaintForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    try {
-        // Validação dos campos
-        const title = document.getElementById('title').value.trim();
-        const category = document.getElementById('category').value;
-        const lab = document.getElementById('lab').value;
-        const description = document.getElementById('description').value.trim();
-
-        if (!title || !category || !lab || !description) {
-            alert('Por favor, preencha todos os campos obrigatórios!');
-            return;
-        }
-
-        // Criar objeto da reclamação
-        const newComplaint = {
-            title: title,
-            category: category,
-            lab: lab,
-            description: description,
-            date: new Date().toLocaleString('pt-BR'),
-            status: 'pending',
-            response: '',
-            feedback: null
-        };
-
-        // Verificar se o banco de dados está pronto
-        if (!db) {
-            await initDB();
-        }
-
-        // Adicionar ao banco de dados
-        await DataService.addComplaint(newComplaint);
-        
-        // Atualizar a interface
-        await displayComplaints();
-        await updateStats();
-        
-        // Limpar formulário
-        e.target.reset();
-        
-        // Feedback visual
-        alert('Relatório enviado com sucesso!');
-        
-    } catch (error) {
-        console.error('Erro ao enviar:', error);
-        alert('Erro ao enviar relatório. Por favor, tente novamente.');
     }
-});
 
-        // =============================================
-        // Inicialização - ADICIONANDO DADOS INICIAIS SE NECESSÁRIO
-        // =============================================
-        
-        async function initializeApp() {
-            try {
-                await initDB();
-                
-                // Verifica se há reclamações existentes
-                const complaints = await DataService.getAllComplaints();
-                if (complaints.length === 0) {
-                    // Adiciona dados iniciais se o banco estiver vazio
-                    const initialComplaints = [
-                        {
-                            title: "Mouse não funciona no computador 3",
-                            category: "Hardware",
-                            lab: "Laboratório 1",
-                            description: "O mouse do computador 3 do laboratório 1 não está respondendo.",
-                            date: new Date().toLocaleString('pt-BR'),
-                            status: "resolved",
-                            response: "Mouse substituído por um novo. Problema resolvido.",
-                            feedback: {
-                                rating: 5,
-                                comment: "Problema resolvido rapidamente. Excelente atendimento!",
-                                date: new Date().toLocaleString('pt-BR')
-                            }
-                        },
-                        {
-                            title: "Problema com instalação de software",
-                            category: "Software",
-                            lab: "Laboratório 2",
-                            description: "Não consigo instalar o software necessário no laboratório 2.",
-                            date: new Date().toLocaleString('pt-BR'),
-                            status: "analysis",
-                            response: "Estamos verificando a compatibilidade com nossa rede."
-                        }
-                    ];
-                    
-                    for (const complaint of initialComplaints) {
-                        await DataService.addComplaint(complaint);
-                    }
-                }
-                
-                await displayComplaints();
-                await updateStats();
-            } catch (error) {
-                console.error('Erro ao inicializar aplicação:', error);
+    function getStatusText(status) {
+        const statusMap = {
+            'pending': 'PENDENTE',
+            'analysis': 'EM ANÁLISE',
+            'resolved': 'RESOLVIDO',
+            'rejected': 'REJEITADO'
+        };
+        return statusMap[status] || status;
+    }
+
+    document.getElementById('complaintForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        try {
+            const title = document.getElementById('title').value.trim();
+            const category = document.getElementById('category').value;
+            const lab = document.getElementById('lab').value;
+            const description = document.getElementById('description').value.trim();
+            const email = document.getElementById('email').value.trim();
+
+            if (!title || !category || !lab || !description) {
+                alert('Por favor, preencha todos os campos obrigatórios!');
+                return;
             }
-        }
 
-        window.addEventListener('DOMContentLoaded', initializeApp);
-    </script>
+            const newComplaint = {
+                title,
+                category,
+                lab,
+                description,
+                email
+            };
+
+            await DataService.addComplaint(newComplaint);
+
+            await displayComplaints();
+            await updateStats();
+
+            e.target.reset();
+
+            alert('Relatório enviado com sucesso! Será atendido em breve.');
+        } catch (error) {
+            console.error('Erro ao enviar relatório:', error);
+            alert('Erro ao enviar relatório. Por favor, tente novamente.');
+        }
+    });
+
+    async function initializeApp() {
+        try {
+            await displayComplaints();
+            await updateStats();
+        } catch (error) {
+            console.error('Erro ao inicializar aplicação:', error);
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', initializeApp);
+</script>
 </body>
 </html>
