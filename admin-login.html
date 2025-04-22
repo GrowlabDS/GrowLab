@@ -250,6 +250,22 @@
         padding: 12px 15px; /* Reduz um pouco o padding vertical */
     }
 }
+
+body.dark-mode {
+    background-image: linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%) !important;
+    color: #f8f9fa;
+}
+
+body.dark-mode .login-box {
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+body.dark-mode .form-control {
+    background: #2d3436;
+    color: #f8f9fa;
+    border-color: #444;
+}
     </style>
 </head>
 <body>
@@ -303,12 +319,17 @@
 
     <script>
         // Tema
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            const icon = document.querySelector('.theme-toggle i');
-            icon.classList.toggle('fa-moon');
-            icon.classList.toggle('fa-sun');
-        }
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const icon = document.querySelector('.theme-toggle i');
+    if (document.body.classList.contains('dark-mode')) {
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+    } else {
+        icon.classList.remove('fa-sun');
+        icon.classList.add('fa-moon');
+    }
+}	
 
 
         // Credenciais padrão
