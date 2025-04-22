@@ -391,6 +391,51 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .delete-btn {
+            padding: 8px 15px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        .delete-btn:hover {
+            background: #c0392b;
+        }
+        
+        .email-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+        
+        .response-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .response-actions button {
+            flex: 1;
+        }
+
+button[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.fa-spinner {
+    margin-right: 8px;
+}
     </style>
 </head>
 <body>
@@ -465,8 +510,14 @@
             <p>Dashboard Administrativo | Versão 1.0.0</p>
         </footer>
     </div>
-
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script>
+
+    // Inicialize o EmailJS com seu User ID
+    function() {
+        emailjs.init('YnClv_aZvljXiyVGT'); // Substitua pelo seu User ID
+    };
+
         // Dados
         let complaints = JSON.parse(localStorage.getItem('complaints')) || [
             {
@@ -501,24 +552,14 @@
             },
             {
                 id: 4,
-                title: "Teclado com teclas presas",
+                title: "Teclado com teclas teste",
                 category: "Hardware",
                 lab: "Laboratório 2, Computador 7",
                 description: "Teclado do computador 7 está com várias teclas presas, dificultando a digitação.",
                 date: "22/10/2023 10:30",
                 status: "pending",
                 response: ""
-            },
-            {
-                id: 5,
-                title: "Problema com projeção de vídeo",
-                category: "Equipamentos",
-                lab: "Laboratório 1",
-                description: "O projetor do laboratório 1 não está exibindo imagem do computador principal. O cabo HDMI foi testado em outro equipamento e funciona.",
-                date: "23/10/2023 08:45",
-                status: "analysis",
-                response: "Agendada verificação técnica para 25/10."
-            }
+            }	
         ];
 
         // Variáveis do gráfico
@@ -631,6 +672,78 @@
             displayComplaints(filtered);
         }
 
+        // Responder com envio por e-mail
+async function addResponse(id) {
+    const responseInput = document.getElementById(`response-${id}`);
+    const emailInput = document.getElementById(`email-${id}`);
+    const response = responseInput.value.trim();
+    const email = emailInput.value.trim();
+    
+    if(!response) {
+        alert("Por favor, digite uma resposta antes de enviar.");
+        return;
+    }
+    
+    // Atualizar a reclamação com a resposta
+    complaints = complaints.map(c => c.id === id ? {...c, response} : c);
+    localStorage.setItem('complaints', JSON.stringify(complaints));
+    
+    // Se houver e-mail, enviar a resposta
+    if(email) {
+        try {
+            // Mostrar loading
+            const sendBtn = document.querySelector(`button[onclick="addResponse(${id})"]`);
+            const originalText = sendBtn.innerHTML;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            sendBtn.disabled = true;
+            
+            // Enviar e-mail via EmailJS
+            await emailjs.send('service_h69lvdb', 'template_peicjc7', {
+                to_email: email,
+                from_name: "Suporte Técnico Etec DSS",
+                reply_message: response,
+                complaint_id: id,
+                complaint_title: complaints.find(c => c.id === id).title
+            });
+            
+            alert('Resposta enviada com sucesso para: ' + email);
+        } catch (error) {
+            console.error('Erro ao enviar e-mail:', error);
+            alert('Erro ao enviar e-mail. A resposta foi salva, mas não foi enviada por e-mail.');
+        } finally {
+            // Restaurar botão
+            sendBtn.innerHTML = originalText;
+            sendBtn.disabled = false;
+        }
+    } else {
+        alert('Resposta salva no sistema (nenhum e-mail fornecido para envio).');
+    }
+    
+    loadData();
+}
+        
+        // Apagar reclamação
+function deleteComplaint(id) {
+    if(confirm("Tem certeza que deseja apagar esta reclamação permanentemente?")) {
+        // Mostrar loading
+        const deleteBtn = document.querySelector(`.delete-btn[onclick="deleteComplaint(${id})"]`);
+        const originalText = deleteBtn.innerHTML;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Apagando...';
+        deleteBtn.disabled = true;
+        
+        // Simular delay para demonstração
+        setTimeout(() => {
+            complaints = complaints.filter(c => c.id !== id);
+            localStorage.setItem('complaints', JSON.stringify(complaints));
+            loadData();
+            
+            // Restaurar botão (embora o elemento será removido)
+            deleteBtn.innerHTML = originalText;
+            deleteBtn.disabled = false;
+        }, 800);
+    }
+}
+
         // Exibir Reclamações
         function displayComplaints(complaintsToShow = complaints) {
             const grid = document.getElementById('complaintsGrid');
@@ -663,12 +776,23 @@
                             <option value="resolved" ${complaint.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
                         </select>
                         
+                        <input type="email" 
+                            class="email-input" 
+                            id="email-${complaint.id}"
+                            placeholder="E-mail para resposta (opcional)">
+                        
                         <div class="response-input">
                             <input type="text" 
                                 id="response-${complaint.id}"
                                 placeholder="Digite uma resposta..." 
                                 value="${complaint.response || ''}">
-                            <button onclick="addResponse(${complaint.id})"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                        
+                        <div class="response-actions">
+                            <button onclick="addResponse(${complaint.id})"><i class="fas fa-paper-plane"></i> Responder</button>
+                            <button class="delete-btn" onclick="deleteComplaint(${complaint.id})">
+                                <i class="fas fa-trash"></i> Apagar
+                            </button>
                         </div>
                     </div>
                 </div>
