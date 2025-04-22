@@ -80,6 +80,17 @@
             margin-bottom: 15px;
         }
 
+        .theme-toggle {
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(0,0,0,0.1);
+        }
+
         .login-title {
             font-size: 2rem;
             margin: 0 0 10px;
@@ -104,16 +115,17 @@
             font-weight: 500;
         }
 
-        .form-control {
-            width: 100%;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            font-family: 'Poppins', sans-serif;
-            background: var(--bg-color);
-            color: var(--text-color);
-            transition: all 0.3s;
-        }
+	.form-control {
+    width: calc(100% - 30px); /* Alterado para considerar o padding */
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg-color);
+    color: var(--text-color);
+    transition: all 0.3s;
+    box-sizing: border-box; /* Adicionado para incluir padding na largura total */
+}
 
         .form-control:focus {
             outline: none;
@@ -134,9 +146,12 @@
             opacity: 0.7;
         }
 
-        .input-icon input {
-            padding-left: 45px;
-        }
+.input-icon input {
+    padding-left: 45px;
+    width: 100%; /* Garante que o input ocupe toda a largura disponível */
+    box-sizing: border-box; /* Inclui padding na largura total */
+}
+
 
         .btn {
             width: 100%;
@@ -194,9 +209,6 @@
             transition: all 0.3s;
         }
 
-        .theme-toggle:hover {
-            background: rgba(0,0,0,0.1);
-        }
 
         .theme-toggle:hover {
             transform: scale(1.1);
@@ -224,15 +236,20 @@
             text-decoration: underline;
         }
 
-        @media (max-width: 576px) {
-            .login-box {
-                padding: 30px 20px;
-            }
-            
-            .login-title {
-                font-size: 1.8rem;
-            }
-        }
+@media (max-width: 576px) {
+    .login-box {
+        padding: 30px 20px;
+        margin: 0 15px; /* Adiciona margem nas laterais */
+    }
+    
+    .login-title {
+        font-size: 1.8rem;
+    }
+    
+    .form-control {
+        padding: 12px 15px; /* Reduz um pouco o padding vertical */
+    }
+}
     </style>
 </head>
 <body>
@@ -292,6 +309,7 @@
             icon.classList.toggle('fa-moon');
             icon.classList.toggle('fa-sun');
         }
+
 
         // Credenciais padrão
         if(!localStorage.getItem('admin')) {
