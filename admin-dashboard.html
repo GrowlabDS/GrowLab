@@ -196,6 +196,7 @@
         canvas {
             width: 100% !important;
             height: 400px !important;
+            
         }
 
         .complaints-container {
@@ -210,6 +211,15 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+        }
+
+        #statusChart {
+            max-width: 400px;
+            max-height: 400px;
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
         }
 
         .complaints-title {
@@ -512,326 +522,211 @@ button[disabled] {
     </div>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script>
-
-    // Inicialize o EmailJS com seu User ID
-    function() {
-        emailjs.init('YnClv_aZvljXiyVGT'); // Substitua pelo seu User ID
-    };
-
         // Dados
-        let complaints = JSON.parse(localStorage.getItem('complaints')) || [
-            {
-                id: 1,
-                title: "Mouse não funciona no computador 3",
-                category: "Hardware",
-                lab: "Laboratório 1, Computador 3",
-                description: "O mouse do computador 3 do laboratório 1 não está respondendo. Já tentei trocar a porta USB mas o problema persiste.",
-                date: "15/10/2023 09:23",
-                status: "pending",
-                response: ""
-            },
-            {
-                id: 2,
-                title: "Problema com instalação do Visual Studio",
-                category: "Software",
-                lab: "Laboratório 2",
-                description: "Não consigo instalar o Visual Studio nos computadores do laboratório 2. O instalador trava na etapa de download dos componentes.",
-                date: "18/10/2023 11:45",
-                status: "analysis",
-                response: "Estamos verificando a compatibilidade com nossa rede. Atualização em breve."
-            },
-            {
-                id: 3,
-                title: "Internet lenta nos computadores da fileira 4",
-                category: "Rede/Internet",
-                lab: "Laboratório 3, Fileira 4",
-                description: "Todos os computadores da fileira 4 estão com conexão extremamente lenta. Os da fileira 3 estão normais.",
-                date: "20/10/2023 14:12",
-                status: "resolved",
-                response: "Problema identificado como cabo de rede danificado. Substituído e testado."
-            },
-            {
-                id: 4,
-                title: "Teclado com teclas teste",
-                category: "Hardware",
-                lab: "Laboratório 2, Computador 7",
-                description: "Teclado do computador 7 está com várias teclas presas, dificultando a digitação.",
-                date: "22/10/2023 10:30",
-                status: "pending",
-                response: ""
-            }	
-        ];
-
-        // Variáveis do gráfico
-        let chart;
-        let currentChartType = 'doughnut';
-
-        // Atualizar Status
-        function updateStatus(id, newStatus) {
-            complaints = complaints.map(c => c.id === id ? {...c, status: newStatus} : c);
-            localStorage.setItem('complaints', JSON.stringify(complaints));
-            loadData();
-        }
-
-        // Responder
-        function addResponse(id) {
-            const responseInput = document.getElementById(`response-${id}`);
-            const response = responseInput.value.trim();
-            
-            if(response) {
-                complaints = complaints.map(c => c.id === id ? {...c, response} : c);
+         let complaints = JSON.parse(localStorage.getItem('complaints')) || [
+         ];
+ 
+         // Variáveis do gráfico
+         let chart;
+         let currentChartType = 'doughnut';
+ 
+         // Atualizar Status
+         function updateStatus(id, newStatus) {
+             complaints = complaints.map(c => c.id === id ? {...c, status: newStatus} : c);
+             localStorage.setItem('complaints', JSON.stringify(complaints));
+             loadData();
+         }
+ 
+         // Responder
+         function addResponse(id) {
+             const responseInput = document.getElementById(`response-${id}`);
+             const response = responseInput.value.trim();
+             
+             if(response) {
+                 complaints = complaints.map(c => c.id === id ? {...c, response} : c);
+                 localStorage.setItem('complaints', JSON.stringify(complaints));
+                 loadData();
+             }
+         }
+ 
+         // Atualizar Gráfico
+         function updateChart(type = currentChartType) {
+             currentChartType = type;
+             const counts = {
+                 pending: complaints.filter(c => c.status === 'pending').length,
+                 analysis: complaints.filter(c => c.status === 'analysis').length,
+                 resolved: complaints.filter(c => c.status === 'resolved').length,
+                 total: complaints.length
+             };
+ 
+             if(chart) chart.destroy();
+             
+             const ctx = document.getElementById('statusChart').getContext('2d');
+             chart = new Chart(ctx, {
+                 type: currentChartType,
+                 data: {
+                     labels: ['Pendentes', 'Em Análise', 'Resolvidos'],
+                     datasets: [{
+                         data: [counts.pending, counts.analysis, counts.resolved],
+                         backgroundColor: [
+                             'rgba(253, 203, 110, 0.7)',
+                             'rgba(168, 165, 230, 0.7)',
+                             'rgba(0, 184, 148, 0.7)'
+                         ],
+                         borderColor: [
+                             'rgba(253, 203, 110, 1)',
+                             'rgba(168, 165, 230, 1)',
+                             'rgba(0, 184, 148, 1)'
+                         ],
+                         borderWidth: 1
+                     }]
+                 },
+                 options: {
+                     responsive: true,
+                     maintainAspectRatio: false,
+                     plugins: {
+                         legend: {
+                             position: 'bottom',
+                         },
+                         tooltip: {
+                             callbacks: {
+                                 label: function(context) {
+                                     const label = context.label || '';
+                                     const value = context.raw || 0;
+                                     const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                     const percentage = Math.round((value / total) * 100);
+                                     return `${label}: ${value} (${percentage}%)`;
+                                 }
+                             }
+                         }
+                     }
+                 }
+             });
+ 
+             // Atualizar estatísticas
+             document.getElementById('pendingCount').textContent = counts.pending;
+             document.getElementById('analysisCount').textContent = counts.analysis;
+             document.getElementById('resolvedCount').textContent = counts.resolved;
+             document.getElementById('totalCount').textContent = counts.total;
+         }
+ 
+         // Filtrar reclamações
+         function filterComplaints() {
+             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+             const filterValue = document.getElementById('filterSelect').value;
+             
+             let filtered = complaints;
+             
+             // Aplicar filtro de status
+             if(filterValue !== 'all') {
+                 filtered = filtered.filter(c => c.status === filterValue);
+             }
+             
+             // Aplicar busca
+             if(searchTerm) {
+                 filtered = filtered.filter(c => 
+                     c.title.toLowerCase().includes(searchTerm) || 
+                     c.description.toLowerCase().includes(searchTerm) ||
+                     (c.response && c.response.toLowerCase().includes(searchTerm)) ||
+                     c.category.toLowerCase().includes(searchTerm) ||
+                     (c.lab && c.lab.toLowerCase().includes(searchTerm))
+                 );
+             }
+             
+             displayComplaints(filtered);
+         }
+ 
+         // Exibir Reclamações
+         function displayComplaints(complaintsToShow = complaints) {
+             const grid = document.getElementById('complaintsGrid');
+             grid.innerHTML = complaintsToShow.map(complaint => `
+                 <div class="complaint-card">
+                     <div class="complaint-header">
+                         <h3 class="complaint-title">${complaint.title}</h3>
+                         <span class="status ${complaint.status}">${getStatusText(complaint.status)}</span>
+                     </div>
+                     <div class="complaint-meta">
+                         <span><i class="fas fa-tag"></i> ${complaint.category}</span>
+                         <span><i class="fas fa-calendar-alt"></i> ${complaint.date}</span>
+                         ${complaint.lab ? `<span><i class="fas fa-desktop"></i> ${complaint.lab}</span>` : ''}
+                     </div>
+                     <div class="complaint-description">
+                         <p>${complaint.description}</p>
+                     </div>
+                     
+                     ${complaint.response ? `
+                         <div class="response-display">
+                             <div class="response-title"><i class="fas fa-reply"></i> Resposta:</div>
+                             <p>${complaint.response}</p>
+                         </div>
+                     ` : ''}
+                     
+                     <div class="admin-controls">
+                         <select class="status-select" onchange="updateStatus(${complaint.id}, this.value)">
+                             <option value="pending" ${complaint.status === 'pending' ? 'selected' : ''}>Pendente</option>
+                             <option value="analysis" ${complaint.status === 'analysis' ? 'selected' : ''}>Em Análise</option>
+                             <option value="resolved" ${complaint.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
+                         </select>
+                         
+                         <div class="response-input">
+                             <input type="text" 
+                                 id="response-${complaint.id}"
+                                 placeholder="Digite uma resposta..." 
+                                 value="${complaint.response || ''}">
+                             <button onclick="addResponse(${complaint.id})"><i class="fas fa-paper-plane"></i></button>
+                         </div>
+                     </div>
+                     
+                 </div>
+             `).join('');
+         }
+ 
+         
+        // Excluir Reclamação
+        function deleteComplaint(id) {
+            if (confirm("Tem certeza que deseja excluir esta reclamação?")) {
+                complaints = complaints.filter(c => c.id !== id);
                 localStorage.setItem('complaints', JSON.stringify(complaints));
                 loadData();
             }
         }
 
-        // Atualizar Gráfico
-        function updateChart(type = currentChartType) {
-            currentChartType = type;
-            const counts = {
-                pending: complaints.filter(c => c.status === 'pending').length,
-                analysis: complaints.filter(c => c.status === 'analysis').length,
-                resolved: complaints.filter(c => c.status === 'resolved').length,
-                total: complaints.length
-            };
-
-            if(chart) chart.destroy();
-            
-            const ctx = document.getElementById('statusChart').getContext('2d');
-            chart = new Chart(ctx, {
-                type: currentChartType,
-                data: {
-                    labels: ['Pendentes', 'Em Análise', 'Resolvidos'],
-                    datasets: [{
-                        data: [counts.pending, counts.analysis, counts.resolved],
-                        backgroundColor: [
-                            'rgba(253, 203, 110, 0.7)',
-                            'rgba(168, 165, 230, 0.7)',
-                            'rgba(0, 184, 148, 0.7)'
-                        ],
-                        borderColor: [
-                            'rgba(253, 203, 110, 1)',
-                            'rgba(168, 165, 230, 1)',
-                            'rgba(0, 184, 148, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = Math.round((value / total) * 100);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Atualizar estatísticas
-            document.getElementById('pendingCount').textContent = counts.pending;
-            document.getElementById('analysisCount').textContent = counts.analysis;
-            document.getElementById('resolvedCount').textContent = counts.resolved;
-            document.getElementById('totalCount').textContent = counts.total;
-        }
-
-        // Filtrar reclamações
-        function filterComplaints() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const filterValue = document.getElementById('filterSelect').value;
-            
-            let filtered = complaints;
-            
-            // Aplicar filtro de status
-            if(filterValue !== 'all') {
-                filtered = filtered.filter(c => c.status === filterValue);
-            }
-            
-            // Aplicar busca
-            if(searchTerm) {
-                filtered = filtered.filter(c => 
-                    c.title.toLowerCase().includes(searchTerm) || 
-                    c.description.toLowerCase().includes(searchTerm) ||
-                    (c.response && c.response.toLowerCase().includes(searchTerm)) ||
-                    c.category.toLowerCase().includes(searchTerm) ||
-                    (c.lab && c.lab.toLowerCase().includes(searchTerm))
-                );
-            }
-            
-            displayComplaints(filtered);
-        }
-
-        // Responder com envio por e-mail
-async function addResponse(id) {
-    const responseInput = document.getElementById(`response-${id}`);
-    const emailInput = document.getElementById(`email-${id}`);
-    const response = responseInput.value.trim();
-    const email = emailInput.value.trim();
-    
-    if(!response) {
-        alert("Por favor, digite uma resposta antes de enviar.");
-        return;
-    }
-    
-    // Atualizar a reclamação com a resposta
-    complaints = complaints.map(c => c.id === id ? {...c, response} : c);
-    localStorage.setItem('complaints', JSON.stringify(complaints));
-    
-    // Se houver e-mail, enviar a resposta
-    if(email) {
-        try {
-            // Mostrar loading
-            const sendBtn = document.querySelector(`button[onclick="addResponse(${id})"]`);
-            const originalText = sendBtn.innerHTML;
-            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
-            sendBtn.disabled = true;
-            
-            // Enviar e-mail via EmailJS
-            await emailjs.send('service_h69lvdb', 'template_peicjc7', {
-                to_email: email,
-                from_name: "Suporte Técnico Etec DSS",
-                reply_message: response,
-                complaint_id: id,
-                complaint_title: complaints.find(c => c.id === id).title
-            });
-            
-            alert('Resposta enviada com sucesso para: ' + email);
-        } catch (error) {
-            console.error('Erro ao enviar e-mail:', error);
-            alert('Erro ao enviar e-mail. A resposta foi salva, mas não foi enviada por e-mail.');
-        } finally {
-            // Restaurar botão
-            sendBtn.innerHTML = originalText;
-            sendBtn.disabled = false;
-        }
-    } else {
-        alert('Resposta salva no sistema (nenhum e-mail fornecido para envio).');
-    }
-    
-    loadData();
-}
-        
-        // Apagar reclamação
-function deleteComplaint(id) {
-    if(confirm("Tem certeza que deseja apagar esta reclamação permanentemente?")) {
-        // Mostrar loading
-        const deleteBtn = document.querySelector(`.delete-btn[onclick="deleteComplaint(${id})"]`);
-        const originalText = deleteBtn.innerHTML;
-        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Apagando...';
-        deleteBtn.disabled = true;
-        
-        // Simular delay para demonstração
-        setTimeout(() => {
-            complaints = complaints.filter(c => c.id !== id);
-            localStorage.setItem('complaints', JSON.stringify(complaints));
-            loadData();
-            
-            // Restaurar botão (embora o elemento será removido)
-            deleteBtn.innerHTML = originalText;
-            deleteBtn.disabled = false;
-        }, 800);
-    }
-}
-
-        // Exibir Reclamações
-        function displayComplaints(complaintsToShow = complaints) {
-            const grid = document.getElementById('complaintsGrid');
-            grid.innerHTML = complaintsToShow.map(complaint => `
-                <div class="complaint-card">
-                    <div class="complaint-header">
-                        <h3 class="complaint-title">${complaint.title}</h3>
-                        <span class="status ${complaint.status}">${getStatusText(complaint.status)}</span>
-                    </div>
-                    <div class="complaint-meta">
-                        <span><i class="fas fa-tag"></i> ${complaint.category}</span>
-                        <span><i class="fas fa-calendar-alt"></i> ${complaint.date}</span>
-                        ${complaint.lab ? `<span><i class="fas fa-desktop"></i> ${complaint.lab}</span>` : ''}
-                    </div>
-                    <div class="complaint-description">
-                        <p>${complaint.description}</p>
-                    </div>
-                    
-                    ${complaint.response ? `
-                        <div class="response-display">
-                            <div class="response-title"><i class="fas fa-reply"></i> Resposta:</div>
-                            <p>${complaint.response}</p>
-                        </div>
-                    ` : ''}
-                    
-                    <div class="admin-controls">
-                        <select class="status-select" onchange="updateStatus(${complaint.id}, this.value)">
-                            <option value="pending" ${complaint.status === 'pending' ? 'selected' : ''}>Pendente</option>
-                            <option value="analysis" ${complaint.status === 'analysis' ? 'selected' : ''}>Em Análise</option>
-                            <option value="resolved" ${complaint.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
-                        </select>
-                        
-                        <input type="email" 
-                            class="email-input" 
-                            id="email-${complaint.id}"
-                            placeholder="E-mail para resposta (opcional)">
-                        
-                        <div class="response-input">
-                            <input type="text" 
-                                id="response-${complaint.id}"
-                                placeholder="Digite uma resposta..." 
-                                value="${complaint.response || ''}">
-                        </div>
-                        
-                        <div class="response-actions">
-                            <button onclick="addResponse(${complaint.id})"><i class="fas fa-paper-plane"></i> Responder</button>
-                            <button class="delete-btn" onclick="deleteComplaint(${complaint.id})">
-                                <i class="fas fa-trash"></i> Apagar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
         function getStatusText(status) {
-            const statusMap = {
-                'pending': 'PENDENTE',
-                'analysis': 'EM ANÁLISE',
-                'resolved': 'RESOLVIDO'
-            };
-            return statusMap[status] || status;
-        }
+        
+             const statusMap = {
+                 'pending': 'PENDENTE',
+                 'analysis': 'EM ANÁLISE',
+                 'resolved': 'RESOLVIDO'
+             };
+             return statusMap[status] || status;
+         }
+ 
+         // Carregar Dados
+         function loadData() {
+             updateChart();
+             filterComplaints();
+         }
+ 
+         // Logout
+         function logout() {
+             window.location.href = 'index.html';
+         }
+ 
+         // Toggle Theme
+         function toggleTheme() {
+             document.body.classList.toggle('dark-mode');
+             const icon = document.querySelector('.theme-toggle i');
+             icon.classList.toggle('fa-moon');
+             icon.classList.toggle('fa-sun');
+         }
+ 
+         // Inicializar
+         if(!localStorage.getItem('complaints')) {
+             localStorage.setItem('complaints', JSON.stringify(complaints));
+         }
 
-        // Carregar Dados
-        function loadData() {
-            updateChart();
-            filterComplaints();
-        }
-
-        // Logout
-        function logout() {
-            window.location.href = 'index.html';
-        }
-
-        // Toggle Theme
-        function toggleTheme() {
-            document.body.classList.toggle('dark-mode');
-            const icon = document.querySelector('.theme-toggle i');
-            icon.classList.toggle('fa-moon');
-            icon.classList.toggle('fa-sun');
-        }
-
-        // Inicializar
-        if(!localStorage.getItem('complaints')) {
-            localStorage.setItem('complaints', JSON.stringify(complaints));
-        }
-        loadData();
+         
+         loadData();
     </script>
 </body>
 </html>
