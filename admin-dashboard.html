@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -446,6 +447,8 @@ button[disabled] {
 .fa-spinner {
     margin-right: 8px;
 }
+
+
     </style>
 </head>
 <body>
@@ -522,6 +525,8 @@ button[disabled] {
     </div>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script>
+        emailjs.init('YnClv_aZvljXiyVGT');
+        
         // Dados
          let complaints = JSON.parse(localStorage.getItem('complaints')) || [
          ];
@@ -536,18 +541,24 @@ button[disabled] {
              localStorage.setItem('complaints', JSON.stringify(complaints));
              loadData();
          }
- 
-         // Responder
-         function addResponse(id) {
-             const responseInput = document.getElementById(`response-${id}`);
-             const response = responseInput.value.trim();
-             
-             if(response) {
-                 complaints = complaints.map(c => c.id === id ? {...c, response} : c);
-                 localStorage.setItem('complaints', JSON.stringify(complaints));
-                 loadData();
-             }
-         }
+
+        // Responder
+        function addResponse(id) {
+            const responseInput = document.getElementById(`response-${id}`);
+            const response = responseInput.value.trim();
+            const sendEmailCheckbox = document.getElementById(`sendEmail-${id}`);
+            const complaint = complaints.find(c => c.id === id); // Encontra a reclamação
+
+            if(response) {
+                complaints = complaints.map(c => c.id === id ? {...c, response} : c);
+                localStorage.setItem('complaints', JSON.stringify(complaints));
+                loadData();
+
+                if (sendEmailCheckbox.checked && complaint.email) {
+                    sendEmail(complaint.email, complaint.title, response);
+                }
+            }
+        }
  
          // Atualizar Gráfico
          function updateChart(type = currentChartType) {
@@ -646,9 +657,9 @@ button[disabled] {
                          <span class="status ${complaint.status}">${getStatusText(complaint.status)}</span>
                      </div>
                      <div class="complaint-meta">
-                         <span><i class="fas fa-tag"></i> ${complaint.category}</span>
-                         <span><i class="fas fa-calendar-alt"></i> ${complaint.date}</span>
-                         ${complaint.lab ? `<span><i class="fas fa-desktop"></i> ${complaint.lab}</span>` : ''}
+                        <span><i class="fas fa-tag"></i> ${complaint.category}</span>
+                        <span><i class="fas fa-calendar-alt"></i> ${complaint.date}</span>
+                        ${complaint.lab ? `<span><i class="fas fa-desktop"></i> ${complaint.lab}</span>` : ''} 
                      </div>
                      <div class="complaint-description">
                          <p>${complaint.description}</p>
@@ -662,19 +673,31 @@ button[disabled] {
                      ` : ''}
                      
                      <div class="admin-controls">
-                         <select class="status-select" onchange="updateStatus(${complaint.id}, this.value)">
-                             <option value="pending" ${complaint.status === 'pending' ? 'selected' : ''}>Pendente</option>
-                             <option value="analysis" ${complaint.status === 'analysis' ? 'selected' : ''}>Em Análise</option>
-                             <option value="resolved" ${complaint.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
-                         </select>
-                         
-                         <div class="response-input">
-                             <input type="text" 
-                                 id="response-${complaint.id}"
-                                 placeholder="Digite uma resposta..." 
-                                 value="${complaint.response || ''}">
-                             <button onclick="addResponse(${complaint.id})"><i class="fas fa-paper-plane"></i></button>
-                         </div>
+                        <select class="status-select" onchange="updateStatus(${complaint.id}, this.value)">
+                            <option value="pending" ${complaint.status === 'pending' ? 'selected' : ''}>Pendente</option>
+                            <option value="analysis" ${complaint.status === 'analysis' ? 'selected' : ''}>Em Análise</option>
+                            <option value="resolved" ${complaint.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
+                        </select>
+                            <div class="complaint-email">  <span><i class="fas fa-envelope"></i> ${complaint.email}</span>
+                            </div>
+                            <div class="response-input">
+                                <div class="complaint-email">
+                                </div>
+                                <input type="text" 
+                                    id="response-${complaint.id}"
+                                    placeholder="Digite uma resposta..." 
+                                    value="${complaint.response || ''}">
+                                <div class="response-actions">  <button onclick="addResponse(${complaint.id})"><i class="fas fa-paper-plane"></i></button>
+                                    <div>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                                   <label for="sendEmail-${complaint.id}">Enviar Email</label>
+                                        <input type="checkbox" id="sendEmail-${complaint.id}">
+                        <button class="delete-btn" onclick="deleteComplaint(${complaint.id})">
+                            <i class="fas fa-trash-alt"></i> Excluir
+                        </button>
                      </div>
                      
                  </div>
@@ -700,7 +723,32 @@ button[disabled] {
              };
              return statusMap[status] || status;
          }
- 
+
+        //Enviar Email
+        function sendEmail(toEmail, subject, message) {
+            emailjs.send('service_h69lvdb', 'template_peicjc7', {  // Substitua pelos seus IDs
+                to_email: toEmail,
+                subject: `Resposta à sua reclamação: ${subject}`,
+                message: message
+            })
+            .then(function(response) {
+                console.log('Email enviado com sucesso!', response);
+                alert('Resposta enviada e email enviado para o usuário.');
+            }, function(error) {
+                console.error('Erro ao enviar email:', error);
+                alert('Resposta enviada, mas houve um erro ao enviar o email.');
+            });
+        }
+
+        // Excluir Reclamação
+        function deleteComplaint(id) {
+            if (confirm("Tem certeza que deseja excluir esta reclamação?")) {
+                complaints = complaints.filter(c => c.id !== id);
+                localStorage.setItem('complaints', JSON.stringify(complaints));
+                loadData();
+            }
+        }       
+
          // Carregar Dados
          function loadData() {
              updateChart();
